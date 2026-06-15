@@ -81,8 +81,9 @@ export default function CabinScene() {
       {/* Buttons */}
       {[0, 1, 2, 3, 4].map((i) => (
         <mesh key={i}
-          position={[W / 2 - WALL_T / 2 - 0.02, H * 0.55 + 0.22 - i * 0.1, D / 2 - 0.22]}>
-          <cylinderGeometry args={[0.012, 0.012, 0.006, 16]} rotation={[0, 0, Math.PI / 2]} />
+          position={[W / 2 - WALL_T / 2 - 0.02, H * 0.55 + 0.22 - i * 0.1, D / 2 - 0.22]}
+          rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.006, 16]} />
           <meshStandardMaterial
             color={finish.trim}
             metalness={0.95}
