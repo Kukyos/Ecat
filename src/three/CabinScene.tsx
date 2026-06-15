@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { useSpring, animated, config } from "@react-spring/three";
+import { useSpring, animated } from "@react-spring/three";
 import { RoundedBox, MeshReflectorMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
@@ -42,15 +42,13 @@ export default function CabinScene() {
   const doorZ = D / 2 + WALL_T / 2 + 0.001;
 
   const centerTravel = W / 2 - 0.02;
-  const sideTravelOuter = W * 0.45;
-  const sideTravelInner = W * 0.22;
+  // Side-opening: right leaf is stationary; left leaf slides right to overlap just left of it.
+  const sideTravel = W / 2 - 0.05;
 
-  const cSpring = useSpring({ cx: open ? centerTravel : 0, config: config.gentle });
-  const sSpring = useSpring({
-    outer: open ? sideTravelOuter : 0,
-    inner: open ? sideTravelInner : 0,
-    config: config.gentle,
-  });
+  // clamp: true → no elastic overshoot at the end of the animation
+  const doorConfig = { tension: 170, friction: 26, clamp: true };
+  const cSpring = useSpring({ cx: open ? centerTravel : 0, config: doorConfig });
+  const sSpring = useSpring({ slide: open ? sideTravel : 0, config: doorConfig });
 
   // Texture maps (generated once, cloned for repeat tweaks)
   const tex = useMemo(() => ({
@@ -172,22 +170,25 @@ export default function CabinScene() {
         tex={tex}
       />
 
-      {/* Back wall mirror panel — true reflector + brushed frame */}
-      <mesh position={[0, H * 0.55, -D / 2 + WALL_T / 2 + 0.005]}>
+      {/* Back wall mirror panel — true reflector + brushed frame.
+          Panel pushed 15mm forward off the wall to prevent z-fighting flicker.
+          mixBlur=0 + resolution=1024 keeps reflection crisp and stable. */}
+      <mesh position={[0, H * 0.55, -D / 2 + WALL_T / 2 + 0.015]}>
         <planeGeometry args={[W * 0.55, H * 0.5]} />
         <MeshReflectorMaterial
-          blur={[100, 60]}
-          resolution={512}
-          mixBlur={0.25}
-          mixStrength={2.2}
-          roughness={0.06}
-          color="#dadada"
+          blur={[0, 0]}
+          resolution={1024}
+          mixBlur={0}
+          mixStrength={2.6}
+          roughness={0.02}
+          color="#e6e6e6"
           metalness={1}
-          mirror={0.92}
+          mirror={1}
         />
       </mesh>
+      {/* Mirror frame sits behind the mirror panel (between wall and mirror) */}
       <RoundedBox args={[W * 0.58, H * 0.53, 0.006]} radius={0.004} smoothness={3}
-        position={[0, H * 0.55, -D / 2 + WALL_T / 2 + 0.002]}>
+        position={[0, H * 0.55, -D / 2 + WALL_T / 2 + 0.008]}>
         <meshPhysicalMaterial
           color={finish.trim}
           metalness={0.97}
@@ -282,10 +283,16 @@ export default function CabinScene() {
         </>
       ) : (
         <>
-          <animated.group position-x={sSpring.outer.to((v) => W / 4 + v)} position-y={doorY} position-z={doorZ + 0.001}>
-            <DoorLeaf width={W / 2 - 0.01} height={doorH} finish={finish} tex={tex} side="left" />
-          </animated.group>
-          <animated.group position-x={sSpring.inner.to((v) => -W / 4 + v)} position-y={doorY} position-z={doorZ - 0.001}>
+          {/* Right leaf — stationary */}
+          <group position={[W / 4, doorY, doorZ + 0.001]}>
+            <DoorLeaf width={W / 2 - 0.01} height={doorH} finish={finish} tex={tex} side="right" />
+          </group>
+          {/* Left leaf — slides right, ending just left of the right leaf */}
+          <animated.group
+            position-x={sSpring.slide.to((v) => -W / 4 + v)}
+            position-y={doorY}
+            position-z={doorZ - 0.012}
+          >
             <DoorLeaf width={W / 2 - 0.01} height={doorH} finish={finish} tex={tex} darker side="left" />
           </animated.group>
         </>
@@ -397,14 +404,18 @@ function WallMaterial({ finish, kind, tex }: { finish: CabinFinish; kind: Materi
         />
       );
     case "mirror":
+      // Soft-tinted reflective panel — perfectly polished mirror reads as "wrong"
+      // because the HDRI env shows too literally. Keep some roughness for blur.
       return (
         <meshPhysicalMaterial
           color={finish.wall}
           metalness={1}
-          roughness={0.06}
-          clearcoat={1}
-          clearcoatRoughness={0.04}
-          envMapIntensity={1.6}
+          roughness={0.18}
+          clearcoat={0.8}
+          clearcoatRoughness={0.18}
+          envMapIntensity={1.0}
+          normalMap={tex.microN}
+          normalScale={new THREE.Vector2(0.2, 0.2)}
         />
       );
     default:
