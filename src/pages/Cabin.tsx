@@ -55,8 +55,8 @@ export default function Cabin() {
           </Suspense>
 
           <EffectComposer multisampling={0} enableNormalPass>
-            <N8AO aoRadius={0.35} intensity={2.2} distanceFalloff={1} quality="medium" />
-            <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.85} luminanceSmoothing={0.2} />
+            <N8AO aoRadius={0.35} intensity={2.4} distanceFalloff={1} quality="medium" />
+            <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.85} luminanceSmoothing={0.22} />
             <SMAA />
             <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
             <Vignette eskil={false} offset={0.2} darkness={0.55} />
