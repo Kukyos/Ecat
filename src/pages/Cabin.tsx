@@ -1,6 +1,9 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import { EffectComposer, Bloom, N8AO, Vignette, SMAA, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import { Suspense } from "react";
+import * as THREE from "three";
 import CabinScene from "../three/CabinScene";
 import { CABIN_FINISHES, useConfig } from "../store";
 
@@ -16,33 +19,53 @@ export default function Cabin() {
     <div className="viewer">
       <div className="canvas-wrap">
         <Canvas
-          shadows
-          dpr={[1, 2]}
+          shadows="soft"
+          dpr={[1, 1.75]}
+          gl={{
+            antialias: true,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.15,
+          }}
           camera={{ position: [2.6, 1.4, 3.2], fov: 38 }}
         >
-          <color attach="background" args={["#0a0a0a"]} />
-          <fog attach="fog" args={["#0a0a0a", 6, 14]} />
-          <ambientLight intensity={0.35} />
+          <color attach="background" args={["#070707"]} />
+          <fog attach="fog" args={["#070707", 6, 16]} />
+          <ambientLight intensity={0.22} />
           <directionalLight
-            position={[3, 6, 4]}
-            intensity={1.4}
+            position={[4, 7, 5]}
+            intensity={1.6}
             castShadow
-            shadow-mapSize-width={1024}
-            shadow-mapSize-height={1024}
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+            shadow-bias={-0.0002}
+            shadow-normalBias={0.02}
           />
+          <directionalLight position={[-4, 3, -3]} intensity={0.35} color="#7aa6c4" />
+
           <Suspense fallback={null}>
-            <Environment preset="apartment" />
+            <Environment preset="warehouse" environmentIntensity={0.85} />
             <CabinScene />
             <ContactShadows
               position={[0, -1.1, 0]}
-              opacity={0.5}
-              scale={6}
-              blur={2.4}
+              opacity={0.55}
+              scale={8}
+              blur={2.6}
               far={3}
             />
           </Suspense>
+
+          <EffectComposer multisampling={0} enableNormalPass>
+            <N8AO aoRadius={0.35} intensity={2.2} distanceFalloff={1} quality="medium" />
+            <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.85} luminanceSmoothing={0.2} />
+            <SMAA />
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            <Vignette eskil={false} offset={0.2} darkness={0.55} />
+          </EffectComposer>
+
           <OrbitControls
             enablePan={false}
+            enableDamping
+            dampingFactor={0.08}
             minDistance={2.4}
             maxDistance={6}
             minPolarAngle={Math.PI / 6}
@@ -56,7 +79,9 @@ export default function Cabin() {
           <span className="pill">Drag · pinch · rotate</span>
         </div>
 
-        <div className="hint">{open ? "Doors open" : "Doors closed"} · {variant === "center" ? "centre-opening" : "side-opening"}</div>
+        <div className="hint">
+          {open ? "Doors open" : "Doors closed"} · {variant === "center" ? "centre-opening" : "side-opening"}
+        </div>
       </div>
 
       <div className="controls">
@@ -67,9 +92,7 @@ export default function Cabin() {
               <button
                 key={f.id}
                 className={`dot ${finishId === f.id ? "sel" : ""}`}
-                style={{
-                  background: `linear-gradient(135deg, ${f.wall}, ${f.trim})`,
-                }}
+                style={{ background: `linear-gradient(135deg, ${f.wall}, ${f.trim})` }}
                 onClick={() => setFinish(f.id)}
                 aria-label={f.name}
                 title={f.name}

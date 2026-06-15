@@ -1,6 +1,9 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import { EffectComposer, Bloom, N8AO, Vignette, SMAA, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import { Suspense } from "react";
+import * as THREE from "three";
 import ShaftScene from "../three/ShaftScene";
 import { FRAME_COLORS, useConfig, type InfillTexture } from "../store";
 
@@ -26,22 +29,46 @@ export default function Shaft() {
     <div className="viewer">
       <div className="canvas-wrap">
         <Canvas
-          shadows
-          dpr={[1, 2]}
+          shadows="soft"
+          dpr={[1, 1.75]}
+          gl={{
+            antialias: true,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.1,
+          }}
           camera={{ position: [4.5, 2.4, 5.5], fov: 40 }}
         >
-          <color attach="background" args={["#0a0a0a"]} />
-          <fog attach="fog" args={["#0a0a0a", 10, 22]} />
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[5, 8, 5]} intensity={1.0} castShadow />
-          <directionalLight position={[-4, 3, -2]} intensity={0.4} color="#8aa6c4" />
+          <color attach="background" args={["#060606"]} />
+          <fog attach="fog" args={["#060606", 10, 24]} />
+          <ambientLight intensity={0.35} />
+          <directionalLight
+            position={[6, 9, 5]}
+            intensity={1.2}
+            castShadow
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+            shadow-bias={-0.0002}
+          />
+          <directionalLight position={[-5, 4, -3]} intensity={0.45} color="#8aa6c4" />
+
           <Suspense fallback={null}>
-            <Environment preset="city" />
+            <Environment preset="city" environmentIntensity={0.7} />
             <ShaftScene />
-            <ContactShadows position={[0, -3.6, 0]} opacity={0.4} scale={10} blur={3} far={5} />
+            <ContactShadows position={[0, -3.6, 0]} opacity={0.45} scale={12} blur={3} far={5} />
           </Suspense>
+
+          <EffectComposer multisampling={0} enableNormalPass>
+            <N8AO aoRadius={0.5} intensity={2.0} distanceFalloff={1.2} quality="medium" />
+            <Bloom mipmapBlur intensity={0.4} luminanceThreshold={0.9} luminanceSmoothing={0.2} />
+            <SMAA />
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            <Vignette eskil={false} offset={0.25} darkness={0.5} />
+          </EffectComposer>
+
           <OrbitControls
             enablePan={false}
+            enableDamping
+            dampingFactor={0.08}
             minDistance={4}
             maxDistance={12}
             minPolarAngle={Math.PI / 8}
@@ -56,9 +83,7 @@ export default function Shaft() {
         </div>
 
         <div className="hint">
-          {selected === null
-            ? "Tap any empty bay, then pick an infill below"
-            : "Now pick an infill material"}
+          {selected === null ? "Tap any empty bay, then pick an infill below" : "Now pick an infill material"}
         </div>
       </div>
 
