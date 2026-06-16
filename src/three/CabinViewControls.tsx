@@ -107,6 +107,7 @@ export function CabinInteriorLook({ enabled }: LookProps) {
   const yaw = useRef(Math.PI);
   const pitch = useRef(0);
   const dragging = useRef(false);
+  const activePointer = useRef<number | null>(null);
   const last = useRef({ x: 0, y: 0 });
   const wasEnabled = useRef(false);
 
@@ -131,50 +132,49 @@ export function CabinInteriorLook({ enabled }: LookProps) {
     if (!enabled) return;
     const dom = gl.domElement;
 
+    // ponytail: listen on window for move/up. R3F's own pointer system
+    // captures events on gl.domElement and was swallowing our move events
+    // on touch after a few px. Window listeners can't be stolen.
     const onDown = (e: PointerEvent) => {
+      // Only react to primary button / single touch starting on the canvas.
+      if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
       dragging.current = true;
+      activePointer.current = e.pointerId;
       last.current = { x: e.clientX, y: e.clientY };
-      try {
-        dom.setPointerCapture(e.pointerId);
-      } catch {
-        // pointerId may be invalid on some touch impls — ignore.
-      }
       dom.style.cursor = "grabbing";
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
+      if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
       const dx = e.clientX - last.current.x;
       const dy = e.clientY - last.current.y;
       last.current = { x: e.clientX, y: e.clientY };
-      // Negative dx → drag right turns view right (natural 360-video feel).
       yaw.current -= dx * 0.005;
       pitch.current -= dy * 0.005;
       const limit = Math.PI / 2 - 0.05;
       if (pitch.current > limit) pitch.current = limit;
       if (pitch.current < -limit) pitch.current = -limit;
+      // Prevent the browser from claiming the gesture for scroll mid-drag.
+      e.preventDefault();
     };
     const onUp = (e: PointerEvent) => {
+      if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
       dragging.current = false;
-      try {
-        dom.releasePointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
+      activePointer.current = null;
       dom.style.cursor = "grab";
     };
 
     dom.style.cursor = "grab";
     dom.addEventListener("pointerdown", onDown);
-    dom.addEventListener("pointermove", onMove);
-    dom.addEventListener("pointerup", onUp);
-    dom.addEventListener("pointercancel", onUp);
-    // ponytail: no pointerleave — with setPointerCapture, leave fires on mobile
-    // while still actively dragging and would freeze the camera after a few px.
+    // passive:false so preventDefault on move actually suppresses scroll.
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
       dom.removeEventListener("pointerdown", onDown);
-      dom.removeEventListener("pointermove", onMove);
-      dom.removeEventListener("pointerup", onUp);
-      dom.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       dom.style.cursor = "";
     };
   }, [enabled, gl.domElement]);
