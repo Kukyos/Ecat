@@ -82,7 +82,6 @@ export default function Cabin() {
             </EffectComposer>
           )}
 
-<<<<<<< Updated upstream
           <CabinCameraRig view={view} onTransitionChange={handleTransitionChange} />
           <CabinInteriorLook enabled={lookEnabled} />
 
@@ -90,27 +89,15 @@ export default function Cabin() {
             <OrbitControls
               enablePan={false}
               enableDamping
-              dampingFactor={0.08}
+              dampingFactor={0.12}
               minDistance={2.4}
               maxDistance={6}
               minPolarAngle={Math.PI / 6}
               maxPolarAngle={Math.PI / 2.05}
               target={[0, 0, 0]}
+              touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }}
             />
           )}
-=======
-          <OrbitControls
-            enablePan={false}
-            enableDamping
-            dampingFactor={0.12}
-            minDistance={2.4}
-            maxDistance={6}
-            minPolarAngle={Math.PI / 6}
-            maxPolarAngle={Math.PI / 2.05}
-            target={[0, 0, 0]}
-            touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }}
-          />
->>>>>>> Stashed changes
         </Canvas>
 
         <div className="viewer-overlay">
