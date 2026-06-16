@@ -132,49 +132,86 @@ export function CabinInteriorLook({ enabled }: LookProps) {
     if (!enabled) return;
     const dom = gl.domElement;
 
-    // ponytail: listen on window for move/up. R3F's own pointer system
-    // captures events on gl.domElement and was swallowing our move events
-    // on touch after a few px. Window listeners can't be stolen.
-    const onDown = (e: PointerEvent) => {
-      // Only react to primary button / single touch starting on the canvas.
-      if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
-      dragging.current = true;
-      activePointer.current = e.pointerId;
-      last.current = { x: e.clientX, y: e.clientY };
-      dom.style.cursor = "grabbing";
-    };
-    const onMove = (e: PointerEvent) => {
-      if (!dragging.current) return;
-      if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
-      const dx = e.clientX - last.current.x;
-      const dy = e.clientY - last.current.y;
-      last.current = { x: e.clientX, y: e.clientY };
+    // ponytail: native touch events for mobile (pointer events get canceled
+    // by iOS Safari mid-drag), mouse events for desktop. Two small handlers
+    // beats one fragile pointer handler.
+    const applyDelta = (dx: number, dy: number) => {
       yaw.current -= dx * 0.005;
       pitch.current -= dy * 0.005;
       const limit = Math.PI / 2 - 0.05;
       if (pitch.current > limit) pitch.current = limit;
       if (pitch.current < -limit) pitch.current = -limit;
-      // Prevent the browser from claiming the gesture for scroll mid-drag.
+    };
+
+    // --- Touch (mobile) ---
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      dragging.current = true;
+      activePointer.current = t.identifier;
+      last.current = { x: t.clientX, y: t.clientY };
       e.preventDefault();
     };
-    const onUp = (e: PointerEvent) => {
-      if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragging.current) return;
+      // Find the touch we started with.
+      let t: Touch | null = null;
+      for (let i = 0; i < e.touches.length; i++) {
+        if (e.touches[i].identifier === activePointer.current) { t = e.touches[i]; break; }
+      }
+      if (!t) return;
+      const dx = t.clientX - last.current.x;
+      const dy = t.clientY - last.current.y;
+      last.current = { x: t.clientX, y: t.clientY };
+      applyDelta(dx, dy);
+      e.preventDefault();
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      // Only end if our tracked touch is gone.
+      for (let i = 0; i < e.touches.length; i++) {
+        if (e.touches[i].identifier === activePointer.current) return;
+      }
       dragging.current = false;
       activePointer.current = null;
+    };
+
+    // --- Mouse (desktop) ---
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      dragging.current = true;
+      last.current = { x: e.clientX, y: e.clientY };
+      dom.style.cursor = "grabbing";
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const dx = e.clientX - last.current.x;
+      const dy = e.clientY - last.current.y;
+      last.current = { x: e.clientX, y: e.clientY };
+      applyDelta(dx, dy);
+    };
+    const onMouseUp = () => {
+      dragging.current = false;
       dom.style.cursor = "grab";
     };
 
     dom.style.cursor = "grab";
-    dom.addEventListener("pointerdown", onDown);
-    // passive:false so preventDefault on move actually suppresses scroll.
-    window.addEventListener("pointermove", onMove, { passive: false });
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    // Touch — passive:false so preventDefault actually blocks scroll/zoom.
+    dom.addEventListener("touchstart", onTouchStart, { passive: false });
+    dom.addEventListener("touchmove", onTouchMove, { passive: false });
+    dom.addEventListener("touchend", onTouchEnd);
+    dom.addEventListener("touchcancel", onTouchEnd);
+    // Mouse on window so leaving the canvas doesn't drop the drag.
+    dom.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
     return () => {
-      dom.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      dom.removeEventListener("touchstart", onTouchStart);
+      dom.removeEventListener("touchmove", onTouchMove);
+      dom.removeEventListener("touchend", onTouchEnd);
+      dom.removeEventListener("touchcancel", onTouchEnd);
+      dom.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
       dom.style.cursor = "";
     };
   }, [enabled, gl.domElement]);
