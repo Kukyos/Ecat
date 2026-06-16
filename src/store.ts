@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type DoorVariant = "center" | "side";
 export type InfillTexture = "empty" | "glass" | "rcp" | "mesh" | "oak" | "marble";
+export type CabinView = "exterior" | "interior";
 
 export type CabinFinish = {
   id: string;
@@ -40,6 +41,7 @@ type State = {
   cabinFinishId: string;
   doorVariant: DoorVariant;
   doorsOpen: boolean;
+  cabinView: CabinView;
   // shaft
   frameColorId: string;
   infill: InfillTexture[]; // length 12 (3 bays × 4 sides)
@@ -48,6 +50,7 @@ type State = {
   setCabinFinish: (id: string) => void;
   setDoorVariant: (v: DoorVariant) => void;
   toggleDoors: () => void;
+  setCabinView: (v: CabinView) => void;
   setFrameColor: (id: string) => void;
   selectPanel: (i: number | null) => void;
   applyInfill: (tex: InfillTexture) => void;
@@ -58,6 +61,7 @@ export const useConfig = create<State>((set) => ({
   cabinFinishId: "champagne",
   doorVariant: "center",
   doorsOpen: false,
+  cabinView: "exterior",
   frameColorId: "raven",
   infill: Array(12).fill("empty") as InfillTexture[],
   selectedPanel: null,
@@ -65,6 +69,7 @@ export const useConfig = create<State>((set) => ({
   setCabinFinish: (id) => set({ cabinFinishId: id }),
   setDoorVariant: (v) => set({ doorVariant: v, doorsOpen: false }),
   toggleDoors: () => set((s) => ({ doorsOpen: !s.doorsOpen })),
+  setCabinView: (v) => set({ cabinView: v }),
   setFrameColor: (id) => set({ frameColorId: id }),
   selectPanel: (i) => set({ selectedPanel: i }),
   applyInfill: (tex) =>

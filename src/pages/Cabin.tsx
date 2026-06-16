@@ -2,9 +2,10 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
 import { EffectComposer, Bloom, N8AO, Vignette, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense } from "react";
+import { Suspense, useCallback, useState } from "react";
 import * as THREE from "three";
 import CabinScene from "../three/CabinScene";
+import { CabinCameraRig, CabinInteriorLook } from "../three/CabinViewControls";
 import { CABIN_FINISHES, useConfig } from "../store";
 
 export default function Cabin() {
@@ -14,6 +15,15 @@ export default function Cabin() {
   const setVariant = useConfig((s) => s.setDoorVariant);
   const open = useConfig((s) => s.doorsOpen);
   const toggleDoors = useConfig((s) => s.toggleDoors);
+  const view = useConfig((s) => s.cabinView);
+  const setView = useConfig((s) => s.setCabinView);
+
+  const [transitioning, setTransitioning] = useState(false);
+  const handleTransitionChange = useCallback((t: boolean) => setTransitioning(t), []);
+
+  const isInterior = view === "interior";
+  const orbitEnabled = view === "exterior" && !transitioning;
+  const lookEnabled = view === "interior" && !transitioning;
 
   return (
     <div className="viewer">
@@ -62,25 +72,51 @@ export default function Cabin() {
             <Vignette eskil={false} offset={0.2} darkness={0.55} />
           </EffectComposer>
 
-          <OrbitControls
-            enablePan={false}
-            enableDamping
-            dampingFactor={0.08}
-            minDistance={2.4}
-            maxDistance={6}
-            minPolarAngle={Math.PI / 6}
-            maxPolarAngle={Math.PI / 2.05}
-            target={[0, 0, 0]}
-          />
+          <CabinCameraRig view={view} onTransitionChange={handleTransitionChange} />
+          <CabinInteriorLook enabled={lookEnabled} />
+
+          {orbitEnabled && (
+            <OrbitControls
+              enablePan={false}
+              enableDamping
+              dampingFactor={0.08}
+              minDistance={2.4}
+              maxDistance={6}
+              minPolarAngle={Math.PI / 6}
+              maxPolarAngle={Math.PI / 2.05}
+              target={[0, 0, 0]}
+            />
+          )}
         </Canvas>
 
         <div className="viewer-overlay">
           <span className="title">Cabin · Live Preview</span>
-          <span className="pill">Drag · pinch · rotate</span>
+          <div className="view-toggle" role="group" aria-label="Camera view">
+            <button
+              className={view === "exterior" ? "active" : ""}
+              onClick={() => !transitioning && setView("exterior")}
+              disabled={transitioning && !isInterior}
+            >
+              Outside
+            </button>
+            <button
+              className={view === "interior" ? "active" : ""}
+              onClick={() => !transitioning && setView("interior")}
+              disabled={transitioning && isInterior}
+            >
+              Step Inside
+            </button>
+          </div>
         </div>
 
         <div className="hint">
-          {open ? "Doors open" : "Doors closed"} · {variant === "center" ? "centre-opening" : "side-opening"}
+          {transitioning
+            ? isInterior
+              ? "Stepping inside…"
+              : "Stepping outside…"
+            : isInterior
+              ? "Drag to look around · 360°"
+              : `${open ? "Doors open" : "Doors closed"} · ${variant === "center" ? "centre-opening" : "side-opening"}`}
         </div>
       </div>
 
