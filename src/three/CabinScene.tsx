@@ -68,16 +68,16 @@ export default function CabinScene() {
         <planeGeometry args={[W * 6, D * 6]} />
         <MeshReflectorMaterial
           blur={[300, 100]}
-          resolution={DEVICE.reflectorResolution}
+          resolution={Math.max(256, Math.floor(DEVICE.reflectorResolution / 2))}
           mixBlur={1}
-          mixStrength={1.4}
-          roughness={0.82}
+          mixStrength={1.2}
+          roughness={0.85}
           depthScale={1.0}
           minDepthThreshold={0.4}
           maxDepthThreshold={1.4}
           color="#0a0a0a"
           metalness={0.45}
-          mirror={0.45}
+          mirror={0.4}
         />
       </mesh>
 
@@ -171,20 +171,19 @@ export default function CabinScene() {
         tex={tex}
       />
 
-      {/* Back wall mirror panel — true reflector + brushed frame.
-          Panel pushed 15mm forward off the wall to prevent z-fighting flicker.
-          mixBlur=0 + resolution=1024 keeps reflection crisp and stable. */}
+      {/* Back wall mirror — softened reflection (less HDRI noise, cheaper pass).
+          ponytail: blur+lower-res = both "tone down odd reflections" and big perf win in one knob. */}
       <mesh position={[0, H * 0.55, -D / 2 + WALL_T / 2 + 0.015]}>
         <planeGeometry args={[W * 0.55, H * 0.5]} />
         <MeshReflectorMaterial
-          blur={[0, 0]}
-          resolution={1024}
-          mixBlur={0}
-          mixStrength={2.6}
-          roughness={0.02}
-          color="#e6e6e6"
+          blur={[140, 60]}
+          resolution={DEVICE.reflectorResolution}
+          mixBlur={1}
+          mixStrength={1.5}
+          roughness={0.18}
+          color="#d8d8d8"
           metalness={1}
-          mirror={1}
+          mirror={0.7}
         />
       </mesh>
       {/* Mirror frame sits behind the mirror panel (between wall and mirror) */}
@@ -204,7 +203,7 @@ export default function CabinScene() {
       {/* Handrail */}
       <group position={[0, H * 0.42, -D / 2 + 0.06]}>
         <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.018, 0.018, W * 0.85, 32]} />
+          <cylinderGeometry args={[0.018, 0.018, W * 0.85, 16]} />
           <meshPhysicalMaterial color={finish.trim} metalness={0.98} roughness={0.1}
             clearcoat={1} clearcoatRoughness={0.06}
             normalMap={tex.brushedN}
@@ -213,12 +212,12 @@ export default function CabinScene() {
         {[-W * 0.38, W * 0.38].map((x, i) => (
           <group key={i} position={[x, 0, -0.02]}>
             <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-              <cylinderGeometry args={[0.012, 0.012, 0.06, 16]} />
+              <cylinderGeometry args={[0.012, 0.012, 0.06, 10]} />
               <meshPhysicalMaterial color={finish.trim} metalness={0.95} roughness={0.2} />
             </mesh>
             {/* Mounting plate */}
             <mesh position={[0, 0, -0.04]}>
-              <cylinderGeometry args={[0.022, 0.022, 0.005, 24]} />
+              <cylinderGeometry args={[0.022, 0.022, 0.005, 14]} />
               <meshPhysicalMaterial color={finish.trim} metalness={0.95} roughness={0.22} />
             </mesh>
           </group>
@@ -239,7 +238,7 @@ export default function CabinScene() {
       {[0, 1, 2, 3, 4].map((i) => (
         <group key={i} position={[W / 2 - WALL_T / 2 - 0.022, H * 0.55 + 0.22 - i * 0.1, D / 2 - 0.22]}>
           <mesh rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.014, 0.014, 0.006, 28]} />
+            <cylinderGeometry args={[0.014, 0.014, 0.006, 14]} />
             <meshPhysicalMaterial
               color={finish.trim}
               metalness={0.95}
@@ -252,7 +251,7 @@ export default function CabinScene() {
           </mesh>
           {/* Inner ring */}
           <mesh rotation={[0, 0, Math.PI / 2]} position={[0, 0, 0]}>
-            <ringGeometry args={[0.011, 0.013, 32]} />
+            <ringGeometry args={[0.011, 0.013, 16]} />
             <meshBasicMaterial color="#1a1a1a" side={THREE.DoubleSide} />
           </mesh>
         </group>
@@ -478,13 +477,13 @@ function DoorLeaf({
         {/* Mounts */}
         {[-height * 0.18, height * 0.18].map((y, i) => (
           <mesh key={i} position={[0, y, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.006, 0.006, 0.025, 16]} />
+            <cylinderGeometry args={[0.006, 0.006, 0.025, 10]} />
             <meshPhysicalMaterial color={finish.trim} metalness={0.97} roughness={0.12} clearcoat={1} />
           </mesh>
         ))}
         {/* Bar */}
         <mesh position={[0, 0, 0.012]}>
-          <cylinderGeometry args={[0.009, 0.009, height * 0.44, 24]} />
+          <cylinderGeometry args={[0.009, 0.009, height * 0.44, 12]} />
           <meshPhysicalMaterial color={finish.trim} metalness={0.97} roughness={0.1}
             clearcoat={1} clearcoatRoughness={0.05}
             normalMap={tex.brushedN}

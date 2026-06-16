@@ -11,8 +11,8 @@ const isTabletDevice = (() => {
 
 export const DEVICE = {
   isTablet: isTabletDevice,
-  /** DPR range for R3F Canvas */
-  dpr: (isTabletDevice ? [1, 1.5] : [1, 1.75]) as [number, number],
+  /** DPR range for R3F Canvas. ponytail: capped at 1.5 — biggest cheap fps win, detail invisible inside elevator. */
+  dpr: (isTabletDevice ? [1, 1.25] : [1, 1.5]) as [number, number],
   /** Shadow-map resolution */
   shadowMapSize: isTabletDevice ? 1024 : 2048,
   /** Procedural texture canvas size */
