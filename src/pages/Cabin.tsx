@@ -41,7 +41,7 @@ export default function Cabin() {
         >
           <color attach="background" args={["#070707"]} />
           <fog attach="fog" args={["#070707", 6, 16]} />
-          <ambientLight intensity={0.22} />
+          <ambientLight intensity={0.3} />
           <directionalLight
             position={[4, 7, 5]}
             intensity={1.6}
@@ -54,7 +54,10 @@ export default function Cabin() {
           <directionalLight position={[-4, 3, -3]} intensity={0.35} color="#7aa6c4" />
 
           <Suspense fallback={<Html center><div className="loader">Loading cabin…</div></Html>}>
-            <Environment preset="warehouse" environmentIntensity={0.85} />
+            {/* ponytail: dropped intensity 0.85→0.5 — kills the HDRI "ghost lights"
+                in mirror/metal reflections, lets the real ceiling light dominate.
+                Free perf-wise. Ambient bumped 0.22→0.3 to compensate for fill loss. */}
+            <Environment preset="warehouse" environmentIntensity={0.5} />
             <CabinScene />
             <ContactShadows
               position={[0, -1.1, 0]}

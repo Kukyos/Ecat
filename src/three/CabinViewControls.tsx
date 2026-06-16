@@ -168,13 +168,13 @@ export function CabinInteriorLook({ enabled }: LookProps) {
     dom.addEventListener("pointermove", onMove);
     dom.addEventListener("pointerup", onUp);
     dom.addEventListener("pointercancel", onUp);
-    dom.addEventListener("pointerleave", onUp);
+    // ponytail: no pointerleave — with setPointerCapture, leave fires on mobile
+    // while still actively dragging and would freeze the camera after a few px.
     return () => {
       dom.removeEventListener("pointerdown", onDown);
       dom.removeEventListener("pointermove", onMove);
       dom.removeEventListener("pointerup", onUp);
       dom.removeEventListener("pointercancel", onUp);
-      dom.removeEventListener("pointerleave", onUp);
       dom.style.cursor = "";
     };
   }, [enabled, gl.domElement]);
