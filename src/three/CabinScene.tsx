@@ -4,6 +4,7 @@ import { RoundedBox, MeshReflectorMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { useConfig, getCabinFinish, type CabinFinish } from "../store";
+import { DEVICE } from "../utils/device";
 import {
   brushedMetalNormal,
   brushedMetalRoughness,
@@ -42,8 +43,8 @@ export default function CabinScene() {
   const doorZ = D / 2 + WALL_T / 2 + 0.001;
 
   const centerTravel = W / 2 - 0.02;
-  // Side-opening: right leaf is stationary; left leaf slides right to overlap just left of it.
-  const sideTravel = W / 2 - 0.05;
+  // Telescoping side-opening: both leaves slide right, left (fast) at full speed, right (slow) at half.
+  const sideTravel = W;
 
   // clamp: true → no elastic overshoot at the end of the animation
   const doorConfig = { tension: 170, friction: 26, clamp: true };
@@ -67,7 +68,7 @@ export default function CabinScene() {
         <planeGeometry args={[W * 6, D * 6]} />
         <MeshReflectorMaterial
           blur={[300, 100]}
-          resolution={1024}
+          resolution={DEVICE.reflectorResolution}
           mixBlur={1}
           mixStrength={1.4}
           roughness={0.82}
@@ -283,15 +284,19 @@ export default function CabinScene() {
         </>
       ) : (
         <>
-          {/* Right leaf — stationary */}
-          <group position={[W / 4, doorY, doorZ + 0.001]}>
+          {/* Right leaf — slow panel, slides right at half speed (behind) */}
+          <animated.group
+            position-x={sSpring.slide.to((v) => W / 4 + v * 0.5)}
+            position-y={doorY}
+            position-z={doorZ - 0.012}
+          >
             <DoorLeaf width={W / 2 - 0.01} height={doorH} finish={finish} tex={tex} side="right" />
-          </group>
-          {/* Left leaf — slides right, ending just left of the right leaf */}
+          </animated.group>
+          {/* Left leaf — fast panel, slides right at full speed (in front) */}
           <animated.group
             position-x={sSpring.slide.to((v) => -W / 4 + v)}
             position-y={doorY}
-            position-z={doorZ - 0.012}
+            position-z={doorZ + 0.002}
           >
             <DoorLeaf width={W / 2 - 0.01} height={doorH} finish={finish} tex={tex} darker side="left" />
           </animated.group>

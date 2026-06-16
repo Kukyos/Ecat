@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import { OrbitControls, ContactShadows, Environment, Html } from "@react-three/drei";
 import { EffectComposer, Bloom, N8AO, Vignette, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { Suspense, useCallback, useState } from "react";
@@ -7,6 +7,7 @@ import * as THREE from "three";
 import CabinScene from "../three/CabinScene";
 import { CabinCameraRig, CabinInteriorLook } from "../three/CabinViewControls";
 import { CABIN_FINISHES, useConfig } from "../store";
+import { DEVICE } from "../utils/device";
 
 export default function Cabin() {
   const finishId = useConfig((s) => s.cabinFinishId);
@@ -30,7 +31,7 @@ export default function Cabin() {
       <div className="canvas-wrap">
         <Canvas
           shadows="soft"
-          dpr={[1, 1.75]}
+          dpr={DEVICE.dpr}
           gl={{
             antialias: true,
             toneMapping: THREE.ACESFilmicToneMapping,
@@ -45,33 +46,43 @@ export default function Cabin() {
             position={[4, 7, 5]}
             intensity={1.6}
             castShadow
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
+            shadow-mapSize-width={DEVICE.shadowMapSize}
+            shadow-mapSize-height={DEVICE.shadowMapSize}
             shadow-bias={-0.0002}
             shadow-normalBias={0.02}
           />
           <directionalLight position={[-4, 3, -3]} intensity={0.35} color="#7aa6c4" />
 
-          <Suspense fallback={null}>
+          <Suspense fallback={<Html center><div className="loader">Loading cabin…</div></Html>}>
             <Environment preset="warehouse" environmentIntensity={0.85} />
             <CabinScene />
             <ContactShadows
               position={[0, -1.1, 0]}
               opacity={0.55}
               scale={8}
-              blur={2.6}
+              blur={DEVICE.contactShadowBlur}
               far={3}
             />
           </Suspense>
 
-          <EffectComposer multisampling={0} enableNormalPass>
-            <N8AO aoRadius={0.35} intensity={2.4} distanceFalloff={1} quality="medium" />
-            <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.85} luminanceSmoothing={0.22} />
-            <SMAA />
-            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-            <Vignette eskil={false} offset={0.2} darkness={0.55} />
-          </EffectComposer>
+          {DEVICE.enableSMAA ? (
+            <EffectComposer multisampling={0} enableNormalPass>
+              <N8AO aoRadius={DEVICE.isTablet ? 0.25 : 0.35} intensity={2.4} distanceFalloff={1} quality={DEVICE.aoQuality} />
+              <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.85} luminanceSmoothing={0.22} />
+              <SMAA />
+              <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+              <Vignette eskil={false} offset={0.2} darkness={0.55} />
+            </EffectComposer>
+          ) : (
+            <EffectComposer multisampling={0} enableNormalPass>
+              <N8AO aoRadius={0.25} intensity={2.4} distanceFalloff={1} quality="low" />
+              <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.85} luminanceSmoothing={0.22} />
+              <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+              <Vignette eskil={false} offset={0.2} darkness={0.55} />
+            </EffectComposer>
+          )}
 
+<<<<<<< Updated upstream
           <CabinCameraRig view={view} onTransitionChange={handleTransitionChange} />
           <CabinInteriorLook enabled={lookEnabled} />
 
@@ -87,6 +98,19 @@ export default function Cabin() {
               target={[0, 0, 0]}
             />
           )}
+=======
+          <OrbitControls
+            enablePan={false}
+            enableDamping
+            dampingFactor={0.12}
+            minDistance={2.4}
+            maxDistance={6}
+            minPolarAngle={Math.PI / 6}
+            maxPolarAngle={Math.PI / 2.05}
+            target={[0, 0, 0]}
+            touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }}
+          />
+>>>>>>> Stashed changes
         </Canvas>
 
         <div className="viewer-overlay">

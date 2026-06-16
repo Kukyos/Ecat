@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CABIN_WALL_FINISHES,
@@ -45,7 +46,7 @@ export default function Catalogue() {
   );
 }
 
-function Section({
+const Section = memo(function Section({
   title, items, onPick,
 }: { title: string; items: SwatchItem[]; onPick: (id: string) => void }) {
   return (
@@ -64,4 +65,4 @@ function Section({
       </div>
     </div>
   );
-}
+});

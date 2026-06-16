@@ -89,6 +89,7 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   overflow-y: auto;
   padding: 22px 22px 40px;
+  touch-action: pan-y;
 }
 .cat h1 {
   font-size: 22px; font-weight: 500; margin: 6px 0 4px;
@@ -297,6 +298,68 @@ a { color: inherit; text-decoration: none; }
   font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--ink-dim);
   white-space: nowrap;
+}
+
+.loader {
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  animation: fade-pulse 1.4s ease-in-out infinite;
+}
+@keyframes fade-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Touch devices — replace hover with active feedback */
+@media (hover: none) {
+  .card:active { transform: scale(0.97); border-color: var(--accent); }
+  .dot:active { transform: scale(1.1); }
+  .tex-chip:active:not(:disabled) { border-color: var(--accent); }
+  .action:active { opacity: 0.85; }
+  .seg button:active { background: var(--accent); color: #1a1408; }
+}
+
+/* ---------- Tablet (541–1024px) ---------- */
+@media (min-width: 541px) and (max-width: 1024px) {
+  .topbar { padding: 14px 24px; }
+  .topbar .brand { font-size: 14px; }
+  .cat { padding: 24px 28px 40px; }
+  .cat h1 { font-size: 24px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .svc-card { padding: 16px 18px; }
+  .controls { padding: 16px 22px 18px; }
+  .controls .label { width: 100px; font-size: 10px; }
+  .dot { width: 42px; height: 42px; }
+  .tex-chip { padding: 8px 14px 8px 8px; font-size: 12px; }
+  .tex-chip .mini { width: 26px; height: 26px; }
+  .action { padding: 12px 20px; font-size: 12px; }
+  .seg button { padding: 9px 18px; font-size: 12px; }
+  .tabs a { padding: 16px 8px 14px; font-size: 12px; }
+  .hint { font-size: 12px; padding: 10px 18px; }
+  .viewer-overlay .pill { font-size: 12px; padding: 10px 16px; }
+  .ar-btn { font-size: 12px; padding: 12px 20px; }
+}
+
+/* ---------- Landscape tablet (1025–1366px) ---------- */
+@media (min-width: 1025px) and (max-width: 1366px) {
+  .viewer {
+    flex-direction: row;
+  }
+  .canvas-wrap {
+    flex: 1;
+  }
+  .controls {
+    width: 320px;
+    max-height: 100%;
+    border-top: none;
+    border-left: 1px solid var(--line);
+    overflow-y: auto;
+  }
+  .dot { width: 40px; height: 40px; }
+  .tex-chip { font-size: 11px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 }
 
 @media (max-width: 540px) {

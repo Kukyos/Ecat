@@ -1,6 +1,14 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { MeshReflectorMaterial } from "@react-three/drei";
 import { useConfig, getFrameColor, type InfillTexture } from "../store";
+import { DEVICE } from "../utils/device";
+import {
+  brushedMetalNormal,
+  brushedMetalRoughness,
+  microNoiseNormal,
+  darkStoneAlbedo,
+} from "./procTextures";
 
 // Shaft outer dims
 const SW = 2.0;   // width
@@ -45,13 +53,33 @@ export default function ShaftScene() {
 
   const panels = useMemo(() => buildPanels(), []);
 
+  // Procedural textures
+  const tex = useMemo(() => ({
+    brushedN: brushedMetalNormal(2),
+    brushedR: brushedMetalRoughness(2, 0.28),
+    microN: microNoiseNormal(3, 0.35),
+    stone: darkStoneAlbedo(),
+  }), []);
+
   // Posts at the 4 corners + intermediate verticals
   return (
     <group position={[0, -SH / 2, 0]}>
-      {/* Ground plane */}
+      {/* Ground plane (highly polished stone) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
         <planeGeometry args={[SW * 4, SD * 4]} />
-        <meshStandardMaterial color="#0e0e0e" roughness={0.9} metalness={0} />
+        <MeshReflectorMaterial
+          blur={[400, 100]}
+          resolution={DEVICE.reflectorResolution}
+          mixBlur={1}
+          mixStrength={1.5}
+          roughness={0.7}
+          depthScale={1.2}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.4}
+          color="#1a1a1a"
+          metalness={0.2}
+          map={tex.stone}
+        />
       </mesh>
 
       {/* Corner posts (full height) */}
@@ -63,7 +91,10 @@ export default function ShaftScene() {
       ].map(([x, z], i) => (
         <mesh key={i} position={[x, SH / 2, z]} castShadow>
           <boxGeometry args={[POST, SH, POST]} />
-          <meshStandardMaterial color={frame.hex} metalness={0.7} roughness={0.35} />
+          <meshStandardMaterial 
+            color={frame.hex} metalness={0.8} 
+            roughnessMap={tex.brushedR} normalMap={tex.brushedN}
+          />
         </mesh>
       ))}
 
@@ -74,19 +105,19 @@ export default function ShaftScene() {
           <group key={f} position={[0, y, 0]}>
             <mesh position={[0, 0, -SD / 2]}>
               <boxGeometry args={[SW, POST, POST]} />
-              <meshStandardMaterial color={frame.hex} metalness={0.7} roughness={0.35} />
+              <meshStandardMaterial color={frame.hex} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
             </mesh>
             <mesh position={[0, 0, SD / 2]}>
               <boxGeometry args={[SW, POST, POST]} />
-              <meshStandardMaterial color={frame.hex} metalness={0.7} roughness={0.35} />
+              <meshStandardMaterial color={frame.hex} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
             </mesh>
             <mesh position={[-SW / 2, 0, 0]}>
               <boxGeometry args={[POST, POST, SD]} />
-              <meshStandardMaterial color={frame.hex} metalness={0.7} roughness={0.35} />
+              <meshStandardMaterial color={frame.hex} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
             </mesh>
             <mesh position={[ SW / 2, 0, 0]}>
               <boxGeometry args={[POST, POST, SD]} />
-              <meshStandardMaterial color={frame.hex} metalness={0.7} roughness={0.35} />
+              <meshStandardMaterial color={frame.hex} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
             </mesh>
           </group>
         );
@@ -96,7 +127,7 @@ export default function ShaftScene() {
       {[-0.35, 0.35].map((x, i) => (
         <mesh key={i} position={[x, SH / 2, 0]}>
           <boxGeometry args={[0.04, SH - 0.1, 0.04]} />
-          <meshStandardMaterial color="#9c958a" metalness={0.9} roughness={0.25} />
+          <meshStandardMaterial color="#b3ad9f" metalness={0.9} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
         </mesh>
       ))}
 
@@ -106,29 +137,51 @@ export default function ShaftScene() {
         <meshBasicMaterial color="#c9a96e" wireframe transparent opacity={0.35} />
       </mesh>
 
-      {/* Infill panels */}
-      {panels.map((p) => (
-        <Panel
-          key={p.index}
-          meta={p}
-          tex={infill[p.index]}
-          selected={selected === p.index}
-          onPick={() => selectPanel(selected === p.index ? null : p.index)}
-        />
-      ))}
+      {/* Elevator Door at bottom front bay (index 1) */}
+      <ElevatorDoor frameColor={frame.hex} tex={tex} />
+
+      {/* Infill panels (skip index 1 where the door is) */}
+      {panels.map((p) => {
+        if (p.index === 1) return null;
+        return (
+          <Panel
+            key={p.index}
+            meta={p}
+            tex={infill[p.index]}
+            texMaps={tex}
+            selected={selected === p.index}
+            onPick={() => selectPanel(selected === p.index ? null : p.index)}
+          />
+        );
+      })}
     </group>
   );
 }
 
 function Panel({
-  meta, tex, selected, onPick,
+  meta, tex, texMaps, selected, onPick,
 }: {
   meta: PanelMeta;
   tex: InfillTexture;
+  texMaps: any;
   selected: boolean;
   onPick: () => void;
 }) {
-  const mat = useMemo(() => makeMaterial(tex, selected), [tex, selected]);
+  const matRef = useRef<THREE.Material | null>(null);
+
+  // Dispose old material and create new one only when tex/selected changes
+  const mat = useMemo(() => {
+    if (matRef.current) matRef.current.dispose();
+    const m = makeMaterial(tex, selected, texMaps);
+    matRef.current = m;
+    return m;
+  }, [tex, selected]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { matRef.current?.dispose(); };
+  }, []);
+
   return (
     <mesh
       position={meta.position}
@@ -142,20 +195,24 @@ function Panel({
   );
 }
 
-function makeMaterial(tex: InfillTexture, selected: boolean): THREE.Material {
+function makeMaterial(tex: InfillTexture, selected: boolean, texMaps: any): THREE.Material {
   const selectionEmissive = selected ? new THREE.Color("#c9a96e") : new THREE.Color("#000000");
   const selectionIntensity = selected ? 0.35 : 0;
 
   switch (tex) {
     case "glass":
       return new THREE.MeshPhysicalMaterial({
-        color: "#b8d4dc",
-        metalness: 0,
-        roughness: 0.08,
-        transmission: 0.85,
-        thickness: 0.02,
+        color: "#d0e4ea",
+        metalness: 0.1,
+        roughness: 0.05,
+        transmission: 0.9,
+        thickness: 0.05,
+        ior: 1.52,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+        normalMap: texMaps.microN,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.8,
         side: THREE.DoubleSide,
         emissive: selectionEmissive,
         emissiveIntensity: selectionIntensity,
@@ -203,11 +260,91 @@ function makeMaterial(tex: InfillTexture, selected: boolean): THREE.Material {
       return new THREE.MeshStandardMaterial({
         color: selected ? "#c9a96e" : "#ffffff",
         transparent: true,
-        opacity: selected ? 0.15 : 0.04,
+        opacity: selected ? 0.15 : 0.0,
         side: THREE.DoubleSide,
         emissive: selectionEmissive,
         emissiveIntensity: selectionIntensity * 0.6,
         depthWrite: false,
       });
   }
+}
+
+function ElevatorDoor({ frameColor, tex }: { frameColor: string; tex: any }) {
+  const doorH = 2.1;
+  const doorW = 1.0; 
+  const frameW = 1.4; // wider frame
+  const bayW = SW - POST * 1.4;
+  const bayH = FLOOR_H - POST * 1.4;
+  
+  return (
+    <group position={[0, FLOOR_H / 2, SD / 2 - 0.005]} rotation={[0, Math.PI, 0]}>
+      {/* Surround wall filling the bay */}
+      <mesh position={[0, 0, -0.01]}>
+        <planeGeometry args={[bayW, bayH]} />
+        <meshStandardMaterial color="#222" metalness={0.2} roughness={0.9} />
+      </mesh>
+
+      {/* Outer frame */}
+      <mesh position={[-frameW / 2 + 0.075, -FLOOR_H / 2 + doorH / 2, 0]}>
+        <boxGeometry args={[0.15, doorH, 0.04]} />
+        <meshStandardMaterial color={frameColor} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
+      </mesh>
+      <mesh position={[frameW / 2 - 0.075, -FLOOR_H / 2 + doorH / 2, 0]}>
+        <boxGeometry args={[0.15, doorH, 0.04]} />
+        <meshStandardMaterial color={frameColor} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
+      </mesh>
+      <mesh position={[0, -FLOOR_H / 2 + doorH + 0.075, 0]}>
+        <boxGeometry args={[frameW, 0.15, 0.04]} />
+        <meshStandardMaterial color={frameColor} metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
+      </mesh>
+
+      {/* Door leaves (closed, with center gap) */}
+      <mesh position={[-doorW / 4 - 0.003, -FLOOR_H / 2 + doorH / 2, 0]}>
+        <boxGeometry args={[doorW / 2 - 0.01, doorH, 0.02]} />
+        <meshStandardMaterial color="#999" metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
+      </mesh>
+      <mesh position={[doorW / 4 + 0.003, -FLOOR_H / 2 + doorH / 2, 0]}>
+        <boxGeometry args={[doorW / 2 - 0.01, doorH, 0.02]} />
+        <meshStandardMaterial color="#999" metalness={0.8} roughnessMap={tex.brushedR} normalMap={tex.brushedN} />
+      </mesh>
+
+      {/* Call button panel on the left frame (local +x = outside left) */}
+      <group position={[frameW / 2 - 0.075, -FLOOR_H / 2 + 1.1, 0.021]}>
+        {/* Faceplate */}
+        <mesh>
+          <boxGeometry args={[0.08, 0.25, 0.01]} />
+          <meshStandardMaterial color="#111" metalness={0.9} roughness={0.5} />
+        </mesh>
+        {/* Up Button */}
+        <mesh position={[0, 0.05, 0.006]}>
+          <boxGeometry args={[0.03, 0.03, 0.005]} />
+          <meshStandardMaterial color="#ddd" emissive="#00ff00" emissiveIntensity={0.8} />
+        </mesh>
+        {/* Down Button */}
+        <mesh position={[0, -0.05, 0.006]}>
+          <boxGeometry args={[0.03, 0.03, 0.005]} />
+          <meshStandardMaterial color="#ddd" emissive="#333" emissiveIntensity={0.2} />
+        </mesh>
+      </group>
+      
+      {/* Floor Indicator (top center of frame) */}
+      <group position={[0, -FLOOR_H / 2 + doorH + 0.075, 0.021]}>
+        {/* Screen */}
+        <mesh>
+          <boxGeometry args={[0.3, 0.08, 0.01]} />
+          <meshStandardMaterial color="#000" metalness={0.9} roughness={0.1} />
+        </mesh>
+        {/* Floor number text representation (red glowing dash) */}
+        <mesh position={[0, 0, 0.006]}>
+          <planeGeometry args={[0.06, 0.04]} />
+          <meshBasicMaterial color="#ff2222" />
+        </mesh>
+        {/* Direction arrow representation */}
+        <mesh position={[-0.08, 0, 0.006]}>
+          <planeGeometry args={[0.02, 0.03]} />
+          <meshBasicMaterial color="#ff2222" />
+        </mesh>
+      </group>
+    </group>
+  );
 }

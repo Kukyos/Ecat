@@ -2,10 +2,11 @@
 // cached and reused across the scene.
 
 import * as THREE from "three";
+import { DEVICE } from "../utils/device";
 
 const cache = new Map<string, THREE.CanvasTexture>();
 
-function makeTex(key: string, draw: (ctx: CanvasRenderingContext2D, size: number) => void, size = 512): THREE.CanvasTexture {
+function makeTex(key: string, draw: (ctx: CanvasRenderingContext2D, size: number) => void, size = DEVICE.textureSize): THREE.CanvasTexture {
   const hit = cache.get(key);
   if (hit) return hit;
   const canvas = document.createElement("canvas");
@@ -14,7 +15,7 @@ function makeTex(key: string, draw: (ctx: CanvasRenderingContext2D, size: number
   draw(ctx, size);
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
+  tex.anisotropy = DEVICE.anisotropy;
   tex.needsUpdate = true;
   cache.set(key, tex);
   return tex;
@@ -36,7 +37,7 @@ function valueNoise(x: number, y: number) {
   const d = hash2(xi + 1, yi + 1);
   return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
 }
-function fbm(x: number, y: number, octaves = 5) {
+function fbm(x: number, y: number, octaves: number = DEVICE.fbmOctaves) {
   let v = 0, amp = 0.5, freq = 1;
   for (let i = 0; i < octaves; i++) {
     v += amp * valueNoise(x * freq, y * freq);
@@ -85,9 +86,9 @@ export function microNoiseNormal(repeat = 4, strength = 0.4) {
     const d = img.data;
     for (let y = 0; y < S; y++) {
       for (let x = 0; x < S; x++) {
-        const n = fbm(x * 0.06, y * 0.06, 4);
+        const n = fbm(x * 0.06, y * 0.06, Math.min(4, DEVICE.fbmOctaves));
         const dx = (n - 0.5) * 60 * strength;
-        const dy = (fbm(x * 0.06 + 7, y * 0.06 - 3, 4) - 0.5) * 60 * strength;
+        const dy = (fbm(x * 0.06 + 7, y * 0.06 - 3, Math.min(4, DEVICE.fbmOctaves)) - 0.5) * 60 * strength;
         const i = (y * S + x) * 4;
         d[i + 0] = Math.max(0, Math.min(255, 128 + dx));
         d[i + 1] = Math.max(0, Math.min(255, 128 + dy));
